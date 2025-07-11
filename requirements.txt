@@ -1,1 +1,1 @@
-python-gnupg
+python-gnupg # This is the GPG library for Python
