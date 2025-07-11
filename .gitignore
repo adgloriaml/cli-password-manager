@@ -48,3 +48,10 @@ coverage.xml
 
 # Windows
 Thumbs.db
+
+# Backup and temporary files
+*~
+*.bak
+*.swp
+*.swo
+*.swm
