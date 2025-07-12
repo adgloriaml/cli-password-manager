@@ -1,5 +1,0 @@
-python-gnupg
-"""
-The gnupg module allows Python programs to make use of the functionality provided 
-by the GNU Privacy Guard (abbreviated GPG or GnuPG)
-"""
