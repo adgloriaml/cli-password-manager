@@ -18,7 +18,7 @@ STORE_DIR = os.path.expanduser("~/.password-store")
 def get_gpg_recipients() -> str:
     gpgid_file = os.path.join(STORE_DIR, ".gpg-id")
     if not os.path.exists(gpgid_file):
-        raise RuntimeError("❌ No GPG ID found in ~/.password-store/.gpg-id")
+        raise RuntimeError("No GPG ID found in ~/.password-store/.gpg-id")
     with open(gpgid_file, "r") as f:
         return f.read().strip()
 
@@ -90,7 +90,7 @@ def cmd_insert(path: str):
     password = input(f"Enter password for {path_to_hash(path)}: ")
     confirm = input(f"Retype password for {path_to_hash(path)}: ")
     if password != confirm:
-        print("❌ Passwords do not match.")
+        print("Passwords do not match.")
         return
     index = load_index()
     hash_key = path_to_hash(path)
@@ -98,15 +98,15 @@ def cmd_insert(path: str):
     recipients = get_gpg_recipients()
     store_password_ascii(hash_key, password, recipients)
     save_index(index, recipients)
-    print(f"✅ Password for '{path}' saved.")
+    print(f"Password for '{path}' saved.")
 
 # Command: list
 def cmd_list():
     index = load_index()
     if not index:
-        print("ℹ️ No entries found.")
+        print("No entries found.")
         return
-    print("📂 Stored entries:\n")
+    print("Stored entries:\n")
     for i, (hash_key, readable) in enumerate(sorted(index.items(), key=lambda x: x[1])):
         print(f"{i+1:02d}. {readable:<25} → {hash_key[:8]}...")
 
@@ -115,11 +115,11 @@ def cmd_show(path: str):
     hash_key = path_to_hash(path)
     file_path = os.path.join(STORE_DIR, hash_key + ".gpg")
     if not os.path.exists(file_path):
-        print("❌ Entry not found.")
+        print("Entry not found.")
         return
     with open(file_path, "rb") as f:
         decrypted = gpg_decrypt(f.read())
-        print(f"🔐 {path}:\n{decrypted.strip()}")
+        print(f"{path}:\n{decrypted.strip()}")
 
 # Handle command-line interface
 def main():
@@ -136,11 +136,11 @@ def main():
         elif cmd == "list":
             cmd_list()
         else:
-            print("❌ Unknown command or wrong usage.")
+            print("Unknown command or wrong usage.")
     except KeyboardInterrupt:
-        print("\n❌ Interrupted. Try again.")
+        print("\nInterrupted. Try again.")
     except Exception:
-        print("⚠️ Unexpected error occurred. Try again.")
+        print("Unexpected error occurred. Try again.")
         traceback.print_exc()
 
 if __name__ == "__main__":
