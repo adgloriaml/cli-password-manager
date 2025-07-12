@@ -1,140 +1,147 @@
 import os
-import json
 import hashlib
+import json
+from pathlib import Path
 import subprocess
 import sys
-from typing import Dict
+import traceback
+
+USE_GNUPG_LIB = False  # True to use python-gnupg
+
+if USE_GNUPG_LIB:
+    import gnupg
+    gpg = gnupg.GPG()
 
 INDEX_FILE = os.path.expanduser("~/.password-store/.index.gpg")
+STORE_DIR = os.path.expanduser("~/.password-store")
 
-# ---------------------------- GPG Utilities ----------------------------
+def get_gpg_recipients() -> str:
+    gpgid_file = os.path.join(STORE_DIR, ".gpg-id")
+    if not os.path.exists(gpgid_file):
+        raise RuntimeError("❌ No GPG ID found in ~/.password-store/.gpg-id")
+    with open(gpgid_file, "r") as f:
+        return f.read().strip()
 
+# Encrypt data
 def gpg_encrypt(data: str, recipients: str) -> bytes:
-    """Encrypt data using GPG and given recipients (asymmetrically)."""
-    process = subprocess.run(
-        ["gpg", "--encrypt"] + sum([["-r", r] for r in recipients.split(",")], []),
-        input=data.encode(),
-        stdout=subprocess.PIPE,
-        check=True
-    )
-    return process.stdout
+    if USE_GNUPG_LIB:
+        return gpg.encrypt(data, recipients.split(","), always_trust=True).data
+    else:
+        process = subprocess.run(
+            ["gpg", "--encrypt"] + sum([["-r", r] for r in recipients.split(",")], []),
+            input=data.encode(),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True
+        )
+        return process.stdout
 
-def gpg_decrypt(ciphertext_path: str) -> str:
-    """Decrypt data from a .gpg file using GPG."""
-    process = subprocess.run(
-        ["gpg", "--quiet", "--decrypt", ciphertext_path],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        check=True
-    )
-    return process.stdout.decode()
+# Decrypt data
+def gpg_decrypt(data: bytes) -> str:
+    if USE_GNUPG_LIB:
+        return str(gpg.decrypt(data))
+    else:
+        process = subprocess.run(
+            ["gpg", "--decrypt"],
+            input=data,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True
+        )
+        return process.stdout.decode()
 
-# ---------------------------- Index Management ----------------------------
-
-def load_index() -> Dict[str, str]:
-    """Load and decrypt the index file, returning the mapping."""
+# Load encrypted index
+def load_index() -> dict:
     if not os.path.exists(INDEX_FILE):
         return {}
-    return json.loads(gpg_decrypt(INDEX_FILE))
+    with open(INDEX_FILE, "rb") as f:
+        encrypted = f.read()
+    try:
+        decrypted = gpg_decrypt(encrypted)
+        return json.loads(decrypted)
+    except Exception:
+        return {}
 
-def save_index(index: Dict[str, str], recipients: str):
-    """Encrypt and save the index file with updated data."""
-    data = json.dumps(index)
+# Save encrypted index
+def save_index(index: dict, recipients: str):
+    data = json.dumps(index, indent=2)
     encrypted = gpg_encrypt(data, recipients)
     with open(INDEX_FILE, "wb") as f:
         f.write(encrypted)
 
-# ---------------------------- Utilities ----------------------------
+# Hash the readable path
+def path_to_hash(path: str) -> str:
+    return hashlib.sha256(path.encode()).hexdigest()
 
-def hash_name(name: str) -> str:
-    """Generate a SHA-256 hash of the entry name."""
-    return hashlib.sha256(name.encode()).hexdigest()
+# Save password in ASCII-armored format
+def store_password_ascii(hash_key: str, password: str, recipients: str):
+    out_path = os.path.join(STORE_DIR, hash_key + ".gpg")
+    process = subprocess.run(
+        ["gpg", "--armor", "--encrypt", "-o", out_path] +
+        sum([["-r", r] for r in recipients.split(",")], []),
+        input=password.encode(),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=True
+    )
 
-def get_gpg_recipients() -> str:
-    """Get recipients from pass configuration."""
-    result = subprocess.run(["pass", "init", "--clip"], capture_output=True, text=True)
-    return result.stdout.strip()
-
-# ---------------------------- Commands ----------------------------
-
-def cmd_insert(name: str):
-    """Insert a new entry."""
-    index = load_index()
-    if name in index:
-        print(f"❗ Entry '{name}' already exists.")
+# Command: insert
+def cmd_insert(path: str):
+    password = input(f"Enter password for {path_to_hash(path)}: ")
+    confirm = input(f"Retype password for {path_to_hash(path)}: ")
+    if password != confirm:
+        print("❌ Passwords do not match.")
         return
-    hashed = hash_name(name)
-    subprocess.run(["pass", "insert", hashed])
-    index[name] = hashed
-    save_index(index, get_gpg_recipients())
-    print(f"✔ Inserted '{name}' (hash: {hashed})")
-
-def cmd_show(name: str):
-    """Show the contents of an entry."""
     index = load_index()
-    hashed = index.get(name)
-    if not hashed:
-        print(f"❌ Entry '{name}' not found.")
-        return
-    subprocess.run(["pass", "show", hashed])
+    hash_key = path_to_hash(path)
+    index[hash_key] = path
+    recipients = get_gpg_recipients()
+    store_password_ascii(hash_key, password, recipients)
+    save_index(index, recipients)
+    print(f"✅ Password for '{path}' saved.")
 
-def cmd_search(pattern: str):
-    """Search entries by readable names."""
+# Command: list
+def cmd_list():
     index = load_index()
-    matches = [k for k in index if pattern.lower() in k.lower()]
-    for m in matches:
-        print(f"- {m}")
-
-def cmd_remove(name: str):
-    """Remove an entry."""
-    index = load_index()
-    hashed = index.pop(name, None)
-    if not hashed:
-        print(f"❌ Entry '{name}' not found.")
+    if not index:
+        print("ℹ️ No entries found.")
         return
-    subprocess.run(["pass", "rm", "-rf", hashed])
-    save_index(index, get_gpg_recipients())
-    print(f"✔ Removed '{name}'")
+    print("📂 Stored entries:\n")
+    for i, (hash_key, readable) in enumerate(sorted(index.items(), key=lambda x: x[1])):
+        print(f"{i+1:02d}. {readable:<25} → {hash_key[:8]}...")
 
-def cmd_rename(old_name: str, new_name: str):
-    """Rename an entry."""
-    index = load_index()
-    if old_name not in index:
-        print(f"❌ Entry '{old_name}' not found.")
+# Command: show
+def cmd_show(path: str):
+    hash_key = path_to_hash(path)
+    file_path = os.path.join(STORE_DIR, hash_key + ".gpg")
+    if not os.path.exists(file_path):
+        print("❌ Entry not found.")
         return
-    if new_name in index:
-        print(f"❗ Entry '{new_name}' already exists.")
-        return
-    old_h = index.pop(old_name)
-    new_h = hash_name(new_name)
-    subprocess.run(["pass", "mv", old_h, new_h])
-    index[new_name] = new_h
-    save_index(index, get_gpg_recipients())
-    print(f"✔ Renamed '{old_name}' → '{new_name}'")
+    with open(file_path, "rb") as f:
+        decrypted = gpg_decrypt(f.read())
+        print(f"🔐 {path}:\n{decrypted.strip()}")
 
-# ---------------------------- CLI ----------------------------
-
+# Handle command-line interface
 def main():
-    if len(sys.argv) < 2:
-        print("Usage: pass-cover <command> [args]")
-        return
-
-    cmd = sys.argv[1]
-    args = sys.argv[2:]
-
-    match cmd:
-        case "insert" if len(args) == 1:
-            cmd_insert(args[0])
-        case "show" if len(args) == 1:
-            cmd_show(args[0])
-        case "search" if len(args) == 1:
-            cmd_search(args[0])
-        case "remove" if len(args) == 1:
-            cmd_remove(args[0])
-        case "rename" if len(args) == 2:
-            cmd_rename(args[0], args[1])
-        case _:
-            print("Unknown or invalid command. Use: insert, show, search, remove, rename")
+    try:
+        args = sys.argv[1:]
+        if not args:
+            print("Usage: insert <name>, show <name>, list")
+            return
+        cmd = args[0]
+        if cmd == "insert" and len(args) == 2:
+            cmd_insert(args[1])
+        elif cmd == "show" and len(args) == 2:
+            cmd_show(args[1])
+        elif cmd == "list":
+            cmd_list()
+        else:
+            print("❌ Unknown command or wrong usage.")
+    except KeyboardInterrupt:
+        print("\n❌ Interrupted. Try again.")
+    except Exception:
+        print("⚠️ Unexpected error occurred. Try again.")
+        traceback.print_exc()
 
 if __name__ == "__main__":
     main()
