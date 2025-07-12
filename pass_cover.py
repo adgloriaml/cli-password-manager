@@ -15,7 +15,7 @@ GPG_ID_FILE = os.path.join(PASS_DIR, ".gpg-id")
 
 # Handle Ctrl+Z gracefully
 def signal_handler(sig, frame):
-    print("\n⚠️  Unexpected error occurred. Try again.")
+    print("\nUnexpected error occurred. Try again.")
     sys.exit(1)
 
 signal.signal(signal.SIGTSTP, signal_handler)
@@ -103,7 +103,7 @@ def cmd_show(name):
 
 def cmd_list():
     index = load_index()
-    print("\n📂 Stored entries:\n")
+    print("\nStored entries:\n")
     for i, (h, name) in enumerate(index.items(), 1):
         print(f"{i:02}. {name:<25} → {h[:8]}...")
 
@@ -175,7 +175,7 @@ def main():
         else:
             print("Invalid command or arguments.")
     except Exception:
-        print("\n⚠️  Unexpected error occurred. Try again.")
+        print("\nUnexpected error occurred. Try again.")
 
 
 if __name__ == "__main__":
