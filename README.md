@@ -1,3 +1,5 @@
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
+
 ## Pass Cover
 Nowadays, when every user has numerous passwords for different services, password management has become an important topic. It should be simple and understandable for everyone.
 
