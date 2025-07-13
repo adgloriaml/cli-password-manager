@@ -20,25 +20,25 @@ chmod +x pass_cover.py
 
 ## Usage
 
-Password store inizialization: 
+Password store inizialization:\
 ```pass init <your-gpg-id>```
 
-Add a password:
+Add a password:\
 ```./pass_cover.py insert <name>```
 
-Show a password:
+Show a password:\
 ```./pass_cover.py show <name>```
 
-List all entries:
+List all entries:\
 ```./pass_cover.py list```
 
-Search for entries:
+Search for entries:\
 ```./pass_cover.py search <query>```
 
-Remove an entry:
+Remove an entry:\
 ```./pass_cover.py remove <name>```
 
-Rename an entry: 
+Rename an entry:\
 ```./pass_cover.py rename <old-name> <new-name>```
 
 ## License
