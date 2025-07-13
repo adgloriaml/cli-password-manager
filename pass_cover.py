@@ -13,7 +13,7 @@ INDEX_FILE = os.path.expanduser("~/.password-store/.index.gpg")
 PASS_DIR = os.path.expanduser("~/.password-store")
 GPG_ID_FILE = os.path.join(PASS_DIR, ".gpg-id")
 
-# Handle Ctrl+Z gracefully
+# Ctrl+Z
 def signal_handler(sig, frame):
     print("\nUnexpected error occurred. Try again.")
     sys.exit(1)
@@ -24,10 +24,10 @@ signal.signal(signal.SIGTSTP, signal_handler)
 def gpg_encrypt(data, recipients):
     process = subprocess.run(
         ["gpg", "--armor", "--encrypt"] + sum([["-r", r] for r in recipients.split(",")], []),
-        input=data.encode(),
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        check=True
+        input = data.encode(),
+        stdout = subprocess.PIPE,
+        stderr = subprocess.PIPE,
+        check = True
     )
     return process.stdout
 
@@ -66,11 +66,11 @@ def get_gpg_recipients():
     with open(GPG_ID_FILE) as f:
         return f.read().strip()
 
-
+# storing the passwords not by name, but by hashes
 def hash_name(name):
     return hashlib.sha256(name.encode()).hexdigest()
 
-
+# pass_cover.py insert
 def cmd_insert(name):
     index = load_index()
     hashed = hash_name(name)
@@ -86,9 +86,9 @@ def cmd_insert(name):
     subprocess.run(["gpg", "--armor", "--encrypt", "-r", get_gpg_recipients(), "-o", entry_path], input=pw1.encode())
     index[hashed] = name
     save_index(index, get_gpg_recipients())
-    print("✔ Entry added.")
+    print("Entry added.")
 
-
+# pass_cover.py show
 def cmd_show(name):
     index = load_index()
     hashed = hash_name(name)
@@ -100,14 +100,14 @@ def cmd_show(name):
         decrypted = gpg_decrypt(f.read())
         print(decrypted)
 
-
+# pass_cover.py list
 def cmd_list():
     index = load_index()
     print("\nStored entries:\n")
     for i, (h, name) in enumerate(index.items(), 1):
         print(f"{i:02}. {name:<25} → {h[:8]}...")
 
-
+# pass_cover.py search
 def cmd_search(query):
     index = load_index()
     results = [(h, name) for h, name in index.items() if query.lower() in name.lower()]
@@ -118,7 +118,7 @@ def cmd_search(query):
     else:
         print("No matching entries found.")
 
-
+# pass_cover.py remove
 def cmd_remove(name):
     index = load_index()
     hashed = hash_name(name)
@@ -131,9 +131,9 @@ def cmd_remove(name):
         pass
     del index[hashed]
     save_index(index, get_gpg_recipients())
-    print("✔ Entry removed.")
+    print("Entry removed.")
 
-
+# pass_cover.py rename
 def cmd_rename(old_name, new_name):
     index = load_index()
     old_hashed = hash_name(old_name)
@@ -148,7 +148,7 @@ def cmd_rename(old_name, new_name):
     index[new_hashed] = new_name
     del index[old_hashed]
     save_index(index, get_gpg_recipients())
-    print("✔ Entry renamed.")
+    print("Entry renamed.")
 
 
 def main():
