@@ -173,7 +173,8 @@ def terminal_list():
 def main():
     try:
         if len(sys.argv) < 2:
-            print("Usage: ./pass_cover.py [insert|show|list|search|remove|rename] <args>")
+            print("Attention!")
+            print("Usage: ./pass_cover.py [insert|show|list|search|remove|rename|generate] <args>")
             return
 
         command = sys.argv[1]
@@ -191,8 +192,12 @@ def main():
             terminal_remove(args[0])
         elif command == "rename" and len(args) == 2:
             terminal_rename(args[0], args[1])
-        elif command == "generate" and len(args) == 1:
-            terminal_generate(args[0])
+        elif command == "generate" and len(args) == 2:
+            try:
+                length = int(args[1])
+                terminal_generate(args[0], length)
+            except ValueError:
+                print("Password length must be a number.")
         else:
             print("Invalid command or arguments.")
     except Exception:
