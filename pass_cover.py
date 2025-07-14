@@ -161,7 +161,7 @@ def terminal_generate(name, length):
     subprocess.run(["gpg", "--armor", "--encrypt", "-r", get_gpg_recipients(), "-o", enc_path], input=password.encode())
     db[hash_key] = name
     save_index(db, get_gpg_recipients())
-    print("Generated and saved password:")
+    print("Saved password:")
     print(password)
 
 def terminal_list():
