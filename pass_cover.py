@@ -104,13 +104,6 @@ def terminal_show(name):
         print(decrypted)
 
 
-def terminal_show():
-    index = load_index()
-    print("\nStored entries:\n")
-    for i, (h, name) in enumerate(index.items(), 1):
-        print(f"{i:02}. {name:<25} → {h[:8]}...")
-
-
 def terminal_search(query):
     index = load_index()
     results = [(h, name) for h, name in index.items() if query.lower() in name.lower()]
@@ -154,18 +147,27 @@ def terminal_rename(old_name, new_name):
     print("Entry renamed.")
 
 
-def terminal_generate(length):
-    try:
-        length = int(length)
-        if length <= 0:
-            raise ValueError
-    except ValueError:
-        print("Please provide a positive integer for password length.")
+def terminal_generate(name, length):
+    db = load_index()
+    hash_key = name_to_hash(name)
+    if hash_key in db:
+        print("Entry already exists.")
         return
-
+    
     characters = string.ascii_letters + string.digits + string.punctuation
     password = ''.join(random.choices(characters, k=length))
-    print(f"Generated password ({length} chars):\n{password}")
+    enc_path = os.path.join(PASS_DIR, f"{hash_key}.gpg")
+    subprocess.run(["gpg", "--armor", "--encrypt", "-r", get_gpg_recipients(), "-o", enc_path], input=password.encode())
+    db[hash_key] = name
+    save_index(db, get_gpg_recipients())
+    print("Generated and saved password:")
+    print(password)
+
+def terminal_list():
+    index = load_index()
+    print("\nStored entries:\n")
+    for i, (h, name) in enumerate(index.items(), 1):
+        print(f"{i:02}. {name:<25} → {h[:8]}...")
 
 
 def main():
@@ -182,7 +184,7 @@ def main():
         elif command == "show" and len(args) == 1:
             terminal_show(args[0])
         elif command == "list":
-            terminal_show()
+            terminal_list()
         elif command == "search" and len(args) == 1:
             terminal_search(args[0])
         elif command == "remove" and len(args) == 1:
