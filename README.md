@@ -59,7 +59,7 @@ Rename an entry:
 
 Generate a password:
 ```shell
-./pass_cover.py generate <length_of_a_password> 
+./pass_cover.py generate <name> <length_of_a_password> 
 ```
 
 ## License
