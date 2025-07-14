@@ -13,12 +13,13 @@ import random
 import string
 
 INDEX_FILE = os.path.expanduser("~/.password-store/.index.gpg")
-PASS_DIR = os.path.expanduser("~/.password-store")
-GPG_ID_FILE = os.path.join(PASS_DIR, ".gpg-id")
+PASS_STORE_DIR = os.path.expanduser("~/.password-store")
+GPG_ID_FILE = os.path.join(PASS_STORE_DIR, ".gpg-id")
 
 
 def signal_handler(sig, frame):
     print("\nUnexpected error occurred. Try again.")
+    print("Read the usage section https://github.com/adgloriaml/pass-cover")
     sys.exit(1)
 
 signal.signal(signal.SIGTSTP, signal_handler)
@@ -85,7 +86,7 @@ def terminal_insert(name):
     if passwd1 != passwd2:
         print("Passwords do not match.")
         return
-    entry_path = os.path.join(PASS_DIR, f"{hashed}.gpg")
+    entry_path = os.path.join(PASS_STORE_DIR, f"{hashed}.gpg")
     subprocess.run(["gpg", "--armor", "--encrypt", "-r", get_gpg_recipients(), "-o", entry_path], input=passwd1.encode())
     index[hashed] = name
     save_index(index, get_gpg_recipients())
@@ -98,7 +99,7 @@ def terminal_show(name):
     if hashed not in index:
         print("Entry not found.")
         return
-    path = os.path.join(PASS_DIR, f"{hashed}.gpg")
+    path = os.path.join(PASS_STORE_DIR, f"{hashed}.gpg")
     with open(path, 'rb') as f:
         decrypted = gpg_decrypt(f.read())
         print(decrypted)
@@ -122,7 +123,7 @@ def terminal_remove(name):
         print("Entry not found.")
         return
     try:
-        os.remove(os.path.join(PASS_DIR, f"{hashed}.gpg"))
+        os.remove(os.path.join(PASS_STORE_DIR, f"{hashed}.gpg"))
     except FileNotFoundError:
         pass
     del index[hashed]
@@ -140,7 +141,7 @@ def terminal_rename(old_name, new_name):
     if new_hashed in index:
         print("New entry already exists.")
         return
-    os.rename(os.path.join(PASS_DIR, f"{old_hashed}.gpg"), os.path.join(PASS_DIR, f"{new_hashed}.gpg"))
+    os.rename(os.path.join(PASS_STORE_DIR, f"{old_hashed}.gpg"), os.path.join(PASS_STORE_DIR, f"{new_hashed}.gpg"))
     index[new_hashed] = new_name
     del index[old_hashed]
     save_index(index, get_gpg_recipients())
@@ -156,7 +157,7 @@ def terminal_generate(name, length):
     
     characters = string.ascii_letters + string.digits + string.punctuation
     password = ''.join(random.choices(characters, k=length))
-    enc_path = os.path.join(PASS_DIR, f"{hash_key}.gpg")
+    enc_path = os.path.join(PASS_STORE_DIR, f"{hash_key}.gpg")
     subprocess.run(["gpg", "--armor", "--encrypt", "-r", get_gpg_recipients(), "-o", enc_path], input=password.encode())
     db[hash_key] = name
     save_index(db, get_gpg_recipients())
@@ -174,7 +175,7 @@ def main():
     try:
         if len(sys.argv) < 2:
             print("Attention!")
-            print("Usage: ./pass_cover.py [insert|show|list|search|remove|rename|generate] <args>")
+            print("Read the usage section https://github.com/adgloriaml/pass-cover")
             return
 
         command = sys.argv[1]
