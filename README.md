@@ -57,6 +57,11 @@ Rename an entry:
 ./pass_cover.py rename <old-name> <new-name>
 ```
 
+Generate a password:
+```shell
+./pass_cover.py generate <length_of_a_password> 
+```
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](./LICENSE.txt) file for details.
