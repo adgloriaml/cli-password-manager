@@ -8,12 +8,15 @@ import sys
 import readline
 import signal
 from pathlib import Path
+import getpass
+import random
+import string
 
 INDEX_FILE = os.path.expanduser("~/.password-store/.index.gpg")
 PASS_DIR = os.path.expanduser("~/.password-store")
 GPG_ID_FILE = os.path.join(PASS_DIR, ".gpg-id")
 
-# Ctrl+Z
+
 def signal_handler(sig, frame):
     print("\nUnexpected error occurred. Try again.")
     sys.exit(1)
@@ -66,32 +69,32 @@ def get_gpg_recipients():
     with open(GPG_ID_FILE) as f:
         return f.read().strip()
 
-# storing the passwords not by name, but by hashes
-def hash_name(name):
+
+def name_to_hash(name):
     return hashlib.sha256(name.encode()).hexdigest()
 
-# pass_cover.py insert
-def cmd_insert(name):
+
+def terminal_insert(name):
     index = load_index()
-    hashed = hash_name(name)
+    hashed = name_to_hash(name)
     if hashed in index:
         print("Entry already exists.")
         return
-    pw1 = input(f"Enter password for {name}: ")
-    pw2 = input(f"Retype password for {name}: ")
-    if pw1 != pw2:
+    passwd1 = getpass.getpass(f"Enter password for {name}: ")
+    passwd2 = getpass.getpass(f"Retype password for {name}: ")
+    if passwd1 != passwd2:
         print("Passwords do not match.")
         return
     entry_path = os.path.join(PASS_DIR, f"{hashed}.gpg")
-    subprocess.run(["gpg", "--armor", "--encrypt", "-r", get_gpg_recipients(), "-o", entry_path], input=pw1.encode())
+    subprocess.run(["gpg", "--armor", "--encrypt", "-r", get_gpg_recipients(), "-o", entry_path], input=passwd1.encode())
     index[hashed] = name
     save_index(index, get_gpg_recipients())
     print("Entry added.")
 
-# pass_cover.py show
-def cmd_show(name):
+
+def terminal_show(name):
     index = load_index()
-    hashed = hash_name(name)
+    hashed = name_to_hash(name)
     if hashed not in index:
         print("Entry not found.")
         return
@@ -100,15 +103,15 @@ def cmd_show(name):
         decrypted = gpg_decrypt(f.read())
         print(decrypted)
 
-# pass_cover.py list
-def cmd_list():
+
+def terminal_show():
     index = load_index()
     print("\nStored entries:\n")
     for i, (h, name) in enumerate(index.items(), 1):
         print(f"{i:02}. {name:<25} → {h[:8]}...")
 
-# pass_cover.py search
-def cmd_search(query):
+
+def terminal_search(query):
     index = load_index()
     results = [(h, name) for h, name in index.items() if query.lower() in name.lower()]
     if results:
@@ -118,10 +121,10 @@ def cmd_search(query):
     else:
         print("No matching entries found.")
 
-# pass_cover.py remove
-def cmd_remove(name):
+
+def terminal_remove(name):
     index = load_index()
-    hashed = hash_name(name)
+    hashed = name_to_hash(name)
     if hashed not in index:
         print("Entry not found.")
         return
@@ -133,11 +136,11 @@ def cmd_remove(name):
     save_index(index, get_gpg_recipients())
     print("Entry removed.")
 
-# pass_cover.py rename
-def cmd_rename(old_name, new_name):
+
+def terminal_rename(old_name, new_name):
     index = load_index()
-    old_hashed = hash_name(old_name)
-    new_hashed = hash_name(new_name)
+    old_hashed = name_to_hash(old_name)
+    new_hashed = name_to_hash(new_name)
     if old_hashed not in index:
         print("Old entry not found.")
         return
@@ -151,6 +154,20 @@ def cmd_rename(old_name, new_name):
     print("Entry renamed.")
 
 
+def terminal_generate(length):
+    try:
+        length = int(length)
+        if length <= 0:
+            raise ValueError
+    except ValueError:
+        print("Please provide a positive integer for password length.")
+        return
+
+    characters = string.ascii_letters + string.digits + string.punctuation
+    password = ''.join(random.choices(characters, k=length))
+    print(f"Generated password ({length} chars):\n{password}")
+
+
 def main():
     try:
         if len(sys.argv) < 2:
@@ -161,17 +178,19 @@ def main():
         args = sys.argv[2:]
 
         if command == "insert" and len(args) == 1:
-            cmd_insert(args[0])
+            terminal_insert(args[0])
         elif command == "show" and len(args) == 1:
-            cmd_show(args[0])
+            terminal_show(args[0])
         elif command == "list":
-            cmd_list()
+            terminal_show()
         elif command == "search" and len(args) == 1:
-            cmd_search(args[0])
+            terminal_search(args[0])
         elif command == "remove" and len(args) == 1:
-            cmd_remove(args[0])
+            terminal_remove(args[0])
         elif command == "rename" and len(args) == 2:
-            cmd_rename(args[0], args[1])
+            terminal_rename(args[0], args[1])
+        elif command == "generate" and len(args) == 1:
+            terminal_generate(args[0])
         else:
             print("Invalid command or arguments.")
     except Exception:
